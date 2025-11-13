@@ -33,6 +33,8 @@ jobs:
       - name: Ensure gh-pages branch exists
         shell: bash
         run: |
+          set -euo pipefail
+          SRC_BRANCH="${GITHUB_REF_NAME}"
           if ! git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
             echo "Initializing gh-pages branch"
             git checkout --orphan gh-pages
@@ -42,7 +44,9 @@ jobs:
             git add .nojekyll
             git commit -m "Initialize gh-pages for Helm chart index"
             git push origin gh-pages
-            git checkout -
+            # Switch back to the source branch explicitly
+            git fetch origin "$SRC_BRANCH" --depth=1
+            git checkout "$SRC_BRANCH"
           fi
 
       - name: Compute branch-specific paths
@@ -63,7 +67,7 @@ jobs:
       - name: Release with chart-releaser (branch)
         uses: helm/chart-releaser-action@v1.6.0
         env:
-          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CR_TOKEN: ${{ github.token }}
           CR_PAGES_BRANCH: gh-pages
           CR_CHARTS_DIR: deployments/kubernetes/chart
           CR_SKIP_EXISTING: true
