@@ -1,12 +1,12 @@
 package common
 
 import (
-    "strconv"
-    "time"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	v1 "k8s.io/api/core/v1"
+	"strconv"
+	"time"
 )
 
 // Config contains rolling upgrade configuration parameters

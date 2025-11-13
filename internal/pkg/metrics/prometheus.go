@@ -9,9 +9,9 @@ import (
 )
 
 type Collectors struct {
-	Reloaded            *prometheus.CounterVec
-	ReloadedByNamespace *prometheus.CounterVec
-	VaultTriggers       *prometheus.CounterVec
+	Reloaded                 *prometheus.CounterVec
+	ReloadedByNamespace      *prometheus.CounterVec
+	VaultTriggers            *prometheus.CounterVec
 	VaultTriggersByNamespace *prometheus.CounterVec
 }
 
