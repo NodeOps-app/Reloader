@@ -2,7 +2,7 @@ name: Release Helm Chart by Branch
 
 on:
   push:
-    branches-ignore:
+    branches:
       # - master
       - master-copy
     paths:
