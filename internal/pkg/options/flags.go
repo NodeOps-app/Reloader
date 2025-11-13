@@ -78,6 +78,22 @@ var (
 	// PProfAddr is the address to start pprof server on
 	// Default is :6060
 	PProfAddr = ":6060"
+	// VaultUpdateOnChangeAnnotation is an annotation to detect changes in external Vault paths
+	VaultUpdateOnChangeAnnotation = "vault.reloader.stakater.com/reload"
+	// EnableVaultTrigger enables HTTP endpoint to trigger reloads from Vault rotation events
+	EnableVaultTrigger = false
+	// VaultRotationToken optional shared secret token required in request header X-Vault-Rotation-Token
+	VaultRotationToken = ""
+	// EnableVaultWatcher enables background watcher to observe Vault paths directly (no webhook)
+	EnableVaultWatcher = false
+	// VaultAddress is the base URL of the Vault server, e.g., https://vault.nodeops.xyz
+	VaultAddress = ""
+	// VaultToken is the token used to query Vault metadata (optional; when empty, watcher will not query Vault)
+	VaultToken = ""
+	// VaultPollInterval is the interval string for polling Vault metadata (e.g., "30s")
+	VaultPollInterval = "30s"
+	// VaultInsecureSkipTLSVerify if true, skip TLS verification for Vault HTTP client
+	VaultInsecureSkipTLSVerify = false
 )
 
 func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {

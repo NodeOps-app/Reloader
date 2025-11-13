@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/handler"
 	"github.com/stakater/Reloader/internal/pkg/leadership"
 
 	"github.com/sirupsen/logrus"
@@ -157,6 +158,12 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	collectors := metrics.SetupPrometheusEndpoint()
+
+	// Register optional external trigger endpoints (e.g., Vault)
+	handler.RegisterVaultEndpoint(collectors)
+
+	// Start optional background watchers (e.g., Vault direct watcher)
+	handler.StartVaultWatcher(collectors)
 
 	var controllers []*controller.Controller
 	for k := range kube.ResourceMap {

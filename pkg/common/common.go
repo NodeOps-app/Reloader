@@ -87,6 +87,10 @@ type ReloaderOptions struct {
 	EnablePProf bool `json:"enablePProf"`
 	// PProfAddr is the address to start pprof server on
 	PProfAddr string `json:"pprofAddr"`
+	// VaultUpdateOnChangeAnnotation is the annotation key used to detect changes in Vault paths specified by name
+	VaultUpdateOnChangeAnnotation string `json:"vaultUpdateOnChangeAnnotation"`
+	// EnableVaultTrigger enables HTTP endpoint to trigger reload based on Vault secret rotation events
+	EnableVaultTrigger bool `json:"enableVaultTrigger"`
 }
 
 var CommandLineOptions *ReloaderOptions
@@ -342,6 +346,8 @@ func GetCommandLineOptions() *ReloaderOptions {
 	CommandLineOptions.ReloadOnDelete = parseBool(options.ReloadOnDelete)
 	CommandLineOptions.EnablePProf = options.EnablePProf
 	CommandLineOptions.PProfAddr = options.PProfAddr
+	CommandLineOptions.VaultUpdateOnChangeAnnotation = options.VaultUpdateOnChangeAnnotation
+	CommandLineOptions.EnableVaultTrigger = options.EnableVaultTrigger
 
 	return CommandLineOptions
 }

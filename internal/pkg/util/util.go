@@ -95,6 +95,17 @@ func ConfigureReloaderFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&options.SyncAfterRestart, "sync-after-restart", false, "Sync add events after reloader restarts")
 	cmd.PersistentFlags().BoolVar(&options.EnablePProf, "enable-pprof", false, "Enable pprof for profiling")
 	cmd.PersistentFlags().StringVar(&options.PProfAddr, "pprof-addr", ":6060", "Address to start pprof server on. Default is :6060")
+	// Vault trigger flags
+	cmd.PersistentFlags().StringVar(&options.VaultUpdateOnChangeAnnotation, "vault-annotation", "vault.reloader.stakater.com/reload", "annotation to detect changes in external Vault paths, specified by path (string or regex)")
+	cmd.PersistentFlags().BoolVar(&options.EnableVaultTrigger, "enable-vault-trigger", false, "Enable HTTP endpoint to trigger reloads on Vault secret rotation events")
+	cmd.PersistentFlags().StringVar(&options.VaultRotationToken, "vault-rotation-token", "", "Optional shared secret token required in header X-Vault-Rotation-Token for /trigger/vault endpoint")
+
+	// Vault watcher flags (no webhook)
+	cmd.PersistentFlags().BoolVar(&options.EnableVaultWatcher, "enable-vault-watcher", false, "Enable background watcher that polls Vault for version changes on annotated paths (no webhook)")
+	cmd.PersistentFlags().StringVar(&options.VaultAddress, "vault-address", "", "Base URL of the Vault server, e.g., https://vault.example.com")
+	cmd.PersistentFlags().StringVar(&options.VaultToken, "vault-token", "", "Vault token used to query KV metadata for current_version")
+	cmd.PersistentFlags().StringVar(&options.VaultPollInterval, "vault-poll-interval", "30s", "Polling interval for Vault watcher (e.g., 30s, 1m)")
+	cmd.PersistentFlags().BoolVar(&options.VaultInsecureSkipTLSVerify, "vault-skip-tls-verify", false, "Skip TLS verification for Vault requests (not recommended for production)")
 }
 
 func GetIgnoredResourcesList() (List, error) {

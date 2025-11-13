@@ -1,6 +1,8 @@
 package common
 
 import (
+    "strconv"
+    "time"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
@@ -44,5 +46,25 @@ func GetSecretConfig(secret *v1.Secret) Config {
 		SHAValue:            util.GetSHAfromSecret(secret.Data),
 		Type:                constants.SecretEnvVarPostfix,
 		Labels:              secret.Labels,
+	}
+}
+
+// GetVaultConfig provides utility config for an external Vault path rotation trigger
+// The resourceName should match the value provided in the workload annotation defined by VaultUpdateOnChangeAnnotation
+// SHAValue can be any changing token (e.g., version from Vault); if empty, current timestamp is used
+func GetVaultConfig(namespace string, resourceName string, version string) Config {
+	sha := version
+	if sha == "" {
+		sha = strconv.FormatInt(time.Now().UnixNano(), 10)
+	}
+	return Config{
+		Namespace:           namespace,
+		ResourceName:        resourceName,
+		ResourceAnnotations: map[string]string{},
+		Annotation:          options.VaultUpdateOnChangeAnnotation,
+		TypedAutoAnnotation: "",
+		SHAValue:            sha,
+		Type:                constants.SecretEnvVarPostfix,
+		Labels:              map[string]string{},
 	}
 }
