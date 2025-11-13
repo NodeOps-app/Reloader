@@ -6,6 +6,7 @@ import (
     "encoding/json"
     "fmt"
     "net/http"
+    "os"
     "strings"
     "sync"
     "time"
@@ -33,8 +34,27 @@ func StartVaultWatcher(collectors metrics.Collectors) {
     if !options.EnableVaultWatcher {
         return
     }
-    if options.VaultAddress == "" || options.VaultToken == "" {
-        logrus.Warn("Vault watcher enabled but vault-address or vault-token not set; watcher will be inactive")
+    if options.VaultAddress == "" {
+        logrus.Warn("Vault watcher enabled but vault-address not set; watcher will be inactive")
+        return
+    }
+
+    // Resolve token from flag or environment variable VAULT_TOKEN (or VAULT_TOKEN_FILE)
+    effectiveToken := options.VaultToken
+    if effectiveToken == "" {
+        if tf := os.Getenv("VAULT_TOKEN_FILE"); tf != "" {
+            if b, err := os.ReadFile(tf); err == nil {
+                effectiveToken = strings.TrimSpace(string(b))
+            } else {
+                logrus.Warnf("vault watcher: failed reading VAULT_TOKEN_FILE: %v", err)
+            }
+        }
+    }
+    if effectiveToken == "" {
+        effectiveToken = os.Getenv("VAULT_TOKEN")
+    }
+    if effectiveToken == "" {
+        logrus.Warn("Vault watcher enabled but no token provided via --vault-token, VAULT_TOKEN, or VAULT_TOKEN_FILE; watcher will be inactive")
         return
     }
 
@@ -60,7 +80,7 @@ func StartVaultWatcher(collectors metrics.Collectors) {
         defer ticker.Stop()
 
         for {
-            if err := evaluateOnce(httpClient, collectors, &mu, last); err != nil {
+            if err := evaluateOnce(httpClient, effectiveToken, collectors, &mu, last); err != nil {
                 logrus.Debugf("vault watcher iteration error: %v", err)
             }
             <-ticker.C
@@ -70,7 +90,7 @@ func StartVaultWatcher(collectors metrics.Collectors) {
     logrus.Infof("Vault watcher started: address=%s interval=%s", options.VaultAddress, interval.String())
 }
 
-func evaluateOnce(httpClient *http.Client, collectors metrics.Collectors, mu *sync.Mutex, last map[nsPath]int) error {
+func evaluateOnce(httpClient *http.Client, token string, collectors metrics.Collectors, mu *sync.Mutex, last map[nsPath]int) error {
     clients := kube.GetClients()
     ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
     defer cancel()
@@ -117,7 +137,7 @@ func evaluateOnce(httpClient *http.Client, collectors metrics.Collectors, mu *sy
 
     // Check Vault version for each ns+path
     for k := range paths {
-        version, err := fetchKVv2CurrentVersion(httpClient, options.VaultAddress, options.VaultToken, k.path)
+        version, err := fetchKVv2CurrentVersion(httpClient, options.VaultAddress, token, k.path)
         if err != nil {
             logrus.Debugf("vault watcher: failed to fetch version for path=%s ns=%s: %v", k.path, k.ns, err)
             continue
