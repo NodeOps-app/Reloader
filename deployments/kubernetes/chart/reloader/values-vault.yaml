@@ -19,3 +19,15 @@ reloader:
   custom_annotations:
     vault: "vault.reloader.stakater.com/reload" # (optional override; keep default)
   logLevel: debug
+  # Exposing HTTP service is not required for watcher-only mode (no webhook)
+  # service:
+  #   port: 9090
+  # Optional: tighten traffic with a NetworkPolicy. If you enable this, allow traffic only from your ingress controller
+  # and from in-cluster callers that need to reach /trigger/vault.
+  # netpol:
+  #   enabled: true
+  #   from:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           kubernetes.io/metadata.name: kube-system   # e.g., Traefik in k3s runs in kube-system
+  #   to: []
