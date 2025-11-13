@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-annotated-example
+  namespace: default
+  labels:
+    app: vault-annotated-example
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault-annotated-example
+  template:
+    metadata:
+      labels:
+        app: vault-annotated-example
+      annotations:
+        # Reloader vault watcher annotation: list one or more KV v2 data paths
+        # Use the KV v2 "data" path form so the watcher can map it to the metadata API
+        # Example watches: secret/data/app/config
+        vault.reloader.stakater.com/reload: "stage/data/oms/"
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 50m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10

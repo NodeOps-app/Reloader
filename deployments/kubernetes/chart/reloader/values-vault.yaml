@@ -1,0 +1,33 @@
+image:
+  repository: reg.nodeops.xyz/devops/reloader
+  tag: vault-watcher
+  pullPolicy: IfNotPresent
+
+reloader:
+  reloadStrategy: annotations           # Recommended for GitOps-friendly reloads
+  vaultTrigger:
+    enabled: false
+    rotationToken: ""  # disabled when using watcher-only mode
+  # Alternatively enable automatic polling (no webhook). Disable vaultTrigger if using watcher only.
+  vaultWatcher:
+    enabled: true
+    address: "https://vault.nodeops.xyz"
+    token: ""          # Metadata access token consider using Kubernetes auth or external secret manager
+    pollInterval: "45s"
+    skipTLSVerify: false
+  enableMetricsByNamespace: true
+  custom_annotations:
+    vault: "vault.reloader.stakater.com/reload" # (optional override; keep default)
+  logLevel: debug
+  # Exposing HTTP service is not required for watcher-only mode (no webhook)
+  # service:
+  #   port: 9090
+  # Optional: tighten traffic with a NetworkPolicy. If you enable this, allow traffic only from your ingress controller
+  # and from in-cluster callers that need to reach /trigger/vault.
+  # netpol:
+  #   enabled: true
+  #   from:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           kubernetes.io/metadata.name: kube-system   # e.g., Traefik in k3s runs in kube-system
+  #   to: []

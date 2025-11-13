@@ -1,0 +1,80 @@
+name: Release Helm Chart by Branch
+
+on:
+  push:
+    branches-ignore:
+      # - master
+      - master-copy
+    paths:
+      - 'deployments/kubernetes/chart/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: helm-chart-release-branch-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+      - name: Ensure gh-pages branch exists
+        shell: bash
+        run: |
+          if ! git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            echo "Initializing gh-pages branch"
+            git checkout --orphan gh-pages
+            git reset --hard
+            rm -rf ./* .github || true
+            touch .nojekyll
+            git add .nojekyll
+            git commit -m "Initialize gh-pages for Helm chart index"
+            git push origin gh-pages
+            git checkout -
+          fi
+
+      - name: Compute branch-specific paths
+        id: branch
+        shell: bash
+        run: |
+          RAW="${GITHUB_REF_NAME}"
+          SAFE="${RAW//\//-}"
+          echo "raw=$RAW" >> $GITHUB_OUTPUT
+          echo "safe=$SAFE" >> $GITHUB_OUTPUT
+          OWNER="${{ github.repository_owner }}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          BASE="https://${OWNER}.github.io/${REPO}"
+          echo "base=$BASE" >> $GITHUB_OUTPUT
+          echo "index_path=branches/$SAFE" >> $GITHUB_OUTPUT
+          echo "repo_url=$BASE/branches/$SAFE" >> $GITHUB_OUTPUT
+
+      - name: Release with chart-releaser (branch)
+        uses: helm/chart-releaser-action@v1.6.0
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CR_PAGES_BRANCH: gh-pages
+          CR_CHARTS_DIR: deployments/kubernetes/chart
+          CR_SKIP_EXISTING: true
+          CR_PAGES_INDEX_PATH: ${{ steps.branch.outputs.index_path }}
+          CR_CHARTS_REPO_URL: ${{ steps.branch.outputs.repo_url }}
+
+      # - name: Notify Slack
+      #   uses: 8398a7/action-slack@v3
+      #   if: always()
+      #   with:
+      #     status: ${{ job.status }}
+      #     fields: repo,author,action,eventName,ref,workflow
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}

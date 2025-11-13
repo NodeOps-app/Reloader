@@ -169,3 +169,60 @@ yq-install:
 	@curl -sL $(YQ_DOWNLOAD_URL) -o $(YQ_BIN)
 	@chmod +x $(YQ_BIN)
 	@echo "yq $(YQ_VERSION) installed at $(YQ_BIN)"
+
+# --- Regression/Demo targets ---
+.PHONY: demo-baseline demo-vault-no-annotations demo-vault-annotated demo-all
+
+HELM_CHART := ./deployments/kubernetes/chart/reloader
+HELM_NS := reloader
+HELM_VALUES := deployments/kubernetes/chart/reloader/values-vault.yaml
+
+ensure-ns:
+	@kubectl get ns $(HELM_NS) >/dev/null 2>&1 || kubectl create ns $(HELM_NS)
+
+demo-baseline: ensure-ns ## Install reloader with Vault features disabled; exercise ConfigMap reload path
+	helm upgrade --install reloader $(HELM_CHART) \
+	  -n $(HELM_NS) \
+	  -f $(HELM_VALUES) \
+	  --set reloader.vaultWatcher.enabled=false \
+	  --set reloader.vaultTrigger.enabled=false
+	# Apply baseline CM + Deployment and trigger a rollout
+	kubectl apply -f deployments/kubernetes/manifests/cm-secret-baseline.yaml
+	kubectl -n default rollout status deploy/demo-app --timeout=90s
+	# Bump the ConfigMap to trigger reload
+	kubectl -n default patch configmap demo-config --type merge -p '{"data":{"MESSAGE":"hello-$$RANDOM"}}'
+	kubectl -n default rollout status deploy/demo-app --timeout=120s
+
+demo-vault-no-annotations: ensure-ns ## Enable Vault watcher with no annotated workloads (should not affect CM/Secret flow)
+	helm upgrade --install reloader $(HELM_CHART) \
+	  -n $(HELM_NS) \
+	  -f $(HELM_VALUES) \
+	  --set reloader.vaultWatcher.enabled=true \
+	  --set reloader.vaultTrigger.enabled=false
+	@echo "Waiting briefly and showing last logs (expect: no annotated workloads)..."
+	sleep 5; kubectl -n $(HELM_NS) logs -l app=reloader-reloader --tail=50 || true
+
+demo-vault-annotated: ensure-ns ## Enable Vault watcher and deploy annotated example (requires VAULT_ADDR and VAULT_TOKEN to be valid to fully trigger)
+	@if [ -z "$$VAULT_ADDR" ]; then echo "[warn] VAULT_ADDR not set; watcher may still start with chart value."; fi
+	# Install with watcher enabled; pass token if provided via env
+	@if [ -n "$$VAULT_TOKEN" ]; then \
+	  helm upgrade --install reloader $(HELM_CHART) -n $(HELM_NS) -f $(HELM_VALUES) \
+	    --set reloader.vaultWatcher.enabled=true \
+	    --set-string reloader.vaultWatcher.token="$$VAULT_TOKEN" ; \
+	else \
+	  helm upgrade --install reloader $(HELM_CHART) -n $(HELM_NS) -f $(HELM_VALUES) \
+	    --set reloader.vaultWatcher.enabled=true ; \
+	fi
+	# Deploy example annotated workload
+	kubectl apply -f deployments/kubernetes/manifests/vault-annotated-example.yaml
+	kubectl -n default rollout status deploy/vault-annotated-example --timeout=90s || true
+	@echo "If VAULT_TOKEN is set and path exists, bump secret/data/app/config to trigger rollout."
+	@echo "Example: vault kv put secret/app/config foo=bar$$(date +%s)"
+	sleep 5; kubectl -n $(HELM_NS) logs -l app=reloader-reloader --tail=100 || true
+
+demo-all: demo-baseline demo-vault-no-annotations demo-vault-annotated ## Run all demos in sequence
+
+.PHONY: vault-bump
+vault-bump: ## Write a new version to Vault KV v2 (uses env: VAULT_ADDR, VAULT_TOKEN or VAULT_TOKEN_FILE)
+	@chmod +x scripts/vault-bump.sh || true
+	./scripts/vault-bump.sh
