@@ -86,6 +86,9 @@ jobs:
           CHART_VERSION="${{ steps.branch.outputs.chart_version }}"
           # After chart-releaser action, gh-pages is already updated locally
           git checkout gh-pages
+          git fetch origin gh-pages
+          # Fast-forward or align to remote to avoid non-fast-forward push errors
+          git reset --hard origin/gh-pages
           mkdir -p branches/$SAFE
           if [ -f index.yaml ]; then
             cp index.yaml branches/$SAFE/index.yaml
