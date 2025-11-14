@@ -28,6 +28,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Configure Git
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
@@ -95,6 +100,9 @@ jobs:
             git add .nojekyll
             git commit -m "init gh-pages"
           fi
+          # Ensure git identity is present (in case earlier step was skipped)
+          git config user.name "${GITHUB_ACTOR}" || true
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com" || true
           mkdir -p branches/$SAFE
           cp dist/*.tgz branches/$SAFE/
           if [ -f branches/$SAFE/index.yaml ]; then
@@ -103,8 +111,14 @@ jobs:
             helm repo index branches/$SAFE --url "https://${{ github.repository_owner }}.github.io/${GITHUB_REPOSITORY#*/}/branches/${SAFE}" 
           fi
           git add branches/$SAFE
-          git commit -m "chore(chart): publish reloader ${{ steps.newver.outputs.version }} for branch $SAFE" || echo "No changes"
+          if git diff --cached --quiet; then
+            echo "No changes to commit for branch repository"
+          else
+            git commit -m "chore(chart): publish reloader ${{ steps.newver.outputs.version }} for branch $SAFE"
+          fi
           git push origin gh-pages
+          # Clean working tree to avoid checkout conflicts
+          git reset --hard
           git checkout "${GITHUB_REF_NAME}"
 
       - name: Create chart tag
