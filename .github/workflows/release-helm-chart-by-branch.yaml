@@ -63,16 +63,41 @@ jobs:
           echo "base=$BASE" >> $GITHUB_OUTPUT
           echo "index_path=branches/$SAFE" >> $GITHUB_OUTPUT
           echo "repo_url=$BASE/branches/$SAFE" >> $GITHUB_OUTPUT
+          CHART_VERSION=$(grep '^version:' deployments/kubernetes/chart/reloader/Chart.yaml | awk '{print $2}')
+          echo "chart_version=$CHART_VERSION" >> $GITHUB_OUTPUT
 
       - name: Release with chart-releaser (branch)
         uses: helm/chart-releaser-action@v1.6.0
+        with:
+          charts_dir: deployments/kubernetes/chart
+          mark_as_latest: false
+          packages_with_index: true
         env:
           CR_TOKEN: ${{ github.token }}
           CR_PAGES_BRANCH: gh-pages
-          CR_CHARTS_DIR: deployments/kubernetes/chart
           CR_SKIP_EXISTING: true
-          CR_PAGES_INDEX_PATH: ${{ steps.branch.outputs.index_path }}
           CR_CHARTS_REPO_URL: ${{ steps.branch.outputs.repo_url }}
+
+      - name: Relocate index and packages to branch subfolder
+        shell: bash
+        run: |
+          set -euo pipefail
+          SAFE="${{ steps.branch.outputs.safe }}"
+          CHART_VERSION="${{ steps.branch.outputs.chart_version }}"
+          # After chart-releaser action, gh-pages is already updated locally
+          git checkout gh-pages
+          mkdir -p branches/$SAFE
+          if [ -f index.yaml ]; then
+            cp index.yaml branches/$SAFE/index.yaml
+          fi
+          for f in *.tgz; do
+            [ -f "$f" ] || continue
+            cp "$f" branches/$SAFE/
+          done
+          git add branches/$SAFE
+          git commit -m "Branch chart repo for $SAFE (version $CHART_VERSION)" || echo "Nothing new to commit"
+          git push origin gh-pages
+          git checkout "${GITHUB_REF_NAME}"
 
       # - name: Notify Slack
       #   uses: 8398a7/action-slack@v3
