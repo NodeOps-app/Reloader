@@ -3,18 +3,21 @@ name: Release Helm Chart by Branch
 on:
   push:
     branches:
-      # - master
       - master-copy
     paths:
-      - 'deployments/kubernetes/chart/**'
+      - 'deployments/kubernetes/chart/reloader/**'
   workflow_dispatch: {}
 
 permissions:
   contents: write
+  packages: write
 
 concurrency:
   group: helm-chart-release-branch-${{ github.ref_name }}
   cancel-in-progress: false
+
+env:
+  OCI_REPO: ghcr.io/${{ github.repository_owner }}/charts
 
 jobs:
   release:
@@ -25,95 +28,93 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure Git
-        run: |
-          git config user.name "${GITHUB_ACTOR}"
-          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
 
-      - name: Ensure gh-pages branch exists
-        shell: bash
+      - name: Read new chart version
+        id: newver
         run: |
-          set -euo pipefail
-          SRC_BRANCH="${GITHUB_REF_NAME}"
-          if ! git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
-            echo "Initializing gh-pages branch"
-            git checkout --orphan gh-pages
-            git reset --hard
-            rm -rf ./* .github || true
-            touch .nojekyll
-            git add .nojekyll
-            git commit -m "Initialize gh-pages for Helm chart index"
-            git push origin gh-pages
-            # Switch back to the source branch explicitly
-            git fetch origin "$SRC_BRANCH" --depth=1
-            git checkout "$SRC_BRANCH"
+          ver=$(grep '^version:' deployments/kubernetes/chart/reloader/Chart.yaml | awk '{print $2}')
+          echo "version=$ver" >> $GITHUB_OUTPUT
+
+      - name: Fetch existing branch index (if any)
+        id: prev
+        run: |
+          set -e
+          BRANCH_SAFE="${GITHUB_REF_NAME//\//-}"
+          URL="https://${{ github.repository_owner }}.github.io/${GITHUB_REPOSITORY#*/}/branches/${BRANCH_SAFE}/index.yaml"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          if curl -fsS "$URL" -o existing-index.yaml; then
+            latest=$(yq '.entries.reloader | sort_by(.version)[-1].version' existing-index.yaml || true)
+            echo "latest=$latest" >> $GITHUB_OUTPUT
+          else
+            echo "latest=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Compute branch-specific paths
-        id: branch
-        shell: bash
+      - name: Ensure version increment
         run: |
-          RAW="${GITHUB_REF_NAME}"
-          SAFE="${RAW//\//-}"
-          echo "raw=$RAW" >> $GITHUB_OUTPUT
-          echo "safe=$SAFE" >> $GITHUB_OUTPUT
-          OWNER="${{ github.repository_owner }}"
-          REPO="${GITHUB_REPOSITORY#*/}"
-          BASE="https://${OWNER}.github.io/${REPO}"
-          echo "base=$BASE" >> $GITHUB_OUTPUT
-          echo "index_path=branches/$SAFE" >> $GITHUB_OUTPUT
-          echo "repo_url=$BASE/branches/$SAFE" >> $GITHUB_OUTPUT
-          CHART_VERSION=$(grep '^version:' deployments/kubernetes/chart/reloader/Chart.yaml | awk '{print $2}')
-          echo "chart_version=$CHART_VERSION" >> $GITHUB_OUTPUT
+          set -e
+          new="${{ steps.newver.outputs.version }}"
+          old="${{ steps.prev.outputs.latest }}"
+          if [ -n "$old" ]; then
+            # naive semver compare using sort -V
+            ordered=$(printf "%s\n%s\n" "$old" "$new" | sort -V | tail -n1)
+            if [ "$ordered" != "$new" ] || [ "$old" = "$new" ]; then
+              echo "Chart version $new is not greater than previous $old" >&2
+              exit 1
+            fi
+          fi
+          echo "Version check passed (old=$old new=$new)"
 
-      - name: Release with chart-releaser (branch)
-        uses: helm/chart-releaser-action@v1.6.0
-        with:
-          charts_dir: deployments/kubernetes/chart
-          mark_as_latest: false
-          packages_with_index: true
-        env:
-          CR_TOKEN: ${{ github.token }}
-          CR_PAGES_BRANCH: gh-pages
-          CR_SKIP_EXISTING: true
-          CR_CHARTS_REPO_URL: ${{ steps.branch.outputs.repo_url }}
+      - name: Package chart
+        run: |
+          helm package deployments/kubernetes/chart/reloader --destination dist
+          ls -l dist
 
-      - name: Relocate index and packages to branch subfolder
-        shell: bash
+      - name: Push OCI package (optional, ignore failure)
+        run: |
+          set -e
+          echo "Logging into GHCR for OCI push"
+          echo ${{ github.token }} | helm registry login ghcr.io --username ${{ github.actor }} --password-stdin || true
+          helm push dist/*.tgz oci://$OCI_REPO || echo "OCI push skipped"
+
+      - name: Update gh-pages branch (branch-scoped index)
         run: |
           set -euo pipefail
-          SAFE="${{ steps.branch.outputs.safe }}"
-          CHART_VERSION="${{ steps.branch.outputs.chart_version }}"
-          ORIG_BRANCH="${GITHUB_REF_NAME}"
-          WORKDIR=$(pwd)
-          TMPDIR=$(mktemp -d)
-          # Collect artifacts produced on source branch before switching
-          [ -f index.yaml ] && mv index.yaml "$TMPDIR/index.yaml" || true
-          for f in *.tgz; do
-            [ -f "$f" ] && mv "$f" "$TMPDIR/" || true
-          done
-          # Switch to gh-pages safely (no untracked artifact conflicts)
-          git checkout gh-pages || git checkout --track origin/gh-pages
-          git fetch origin gh-pages
-          git reset --hard origin/gh-pages
+          SAFE="${GITHUB_REF_NAME//\//-}"
+          git fetch origin gh-pages || true
+          if git rev-parse --verify origin/gh-pages >/dev/null 2>&1; then
+            git checkout gh-pages
+            git reset --hard origin/gh-pages
+          else
+            git checkout --orphan gh-pages
+            git reset --hard
+            touch .nojekyll
+            git add .nojekyll
+            git commit -m "init gh-pages"
+          fi
           mkdir -p branches/$SAFE
-          # Copy artifacts into branch-specific folder
-          [ -f "$TMPDIR/index.yaml" ] && cp "$TMPDIR/index.yaml" branches/$SAFE/index.yaml || true
-          for f in "$TMPDIR"/*.tgz; do
-            [ -f "$f" ] && cp "$f" branches/$SAFE/ || true
-          done
+          cp dist/*.tgz branches/$SAFE/
+          if [ -f branches/$SAFE/index.yaml ]; then
+            helm repo index branches/$SAFE --url "https://${{ github.repository_owner }}.github.io/${GITHUB_REPOSITORY#*/}/branches/${SAFE}" --merge branches/$SAFE/index.yaml
+          else
+            helm repo index branches/$SAFE --url "https://${{ github.repository_owner }}.github.io/${GITHUB_REPOSITORY#*/}/branches/${SAFE}" 
+          fi
           git add branches/$SAFE
-          git commit -m "Branch chart repo for $SAFE (version $CHART_VERSION)" || echo "Nothing new to commit"
+          git commit -m "chore(chart): publish reloader ${{ steps.newver.outputs.version }} for branch $SAFE" || echo "No changes"
           git push origin gh-pages
-          # Cleanup and return to original branch
-          rm -rf "$TMPDIR"
-          git checkout "$ORIG_BRANCH"
+          git checkout "${GITHUB_REF_NAME}"
 
-      # - name: Notify Slack
-      #   uses: 8398a7/action-slack@v3
-      #   if: always()
-      #   with:
-      #     status: ${{ job.status }}
-      #     fields: repo,author,action,eventName,ref,workflow
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}
+      - name: Create chart tag
+        run: |
+          set -e
+          ver="${{ steps.newver.outputs.version }}"
+          git tag -f chart-v$ver || true
+          git push -f origin refs/tags/chart-v$ver
+
+      - name: Summary
+        run: |
+          echo "Branch chart published. Add repo via:"
+          echo "helm repo add reloader https://${{ github.repository_owner }}.github.io/${GITHUB_REPOSITORY#*/}/branches/${GITHUB_REF_NAME//\//-}"
