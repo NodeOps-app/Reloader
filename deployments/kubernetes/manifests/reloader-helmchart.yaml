@@ -7,20 +7,33 @@ spec:
   targetNamespace: stakater
   chart: reloader
   # Set this to the chart version you published to your GitHub Pages repo
-  version: 0.1.10
+  version: 0.1.11
   repo: https://NodeOps-app.github.io/Reloader
   valuesContent: |
+    # Source: values-vault.yaml (inlined to override defaults)
+    image:
+      repository: reg.nodeops.xyz/devops/reloader
+      tag: vault-watcher
+      pullPolicy: IfNotPresent
     reloader:
-      logLevel: info
+      reloadStrategy: annotations
+      logLevel: debug
+      enableMetricsByNamespace: true
+      custom_annotations:
+        vault: "vault.reloader.stakater.com/reload"
       vaultTrigger:
         enabled: false
+        rotationToken: ""
       vaultWatcher:
         enabled: true
-        address: "https://vault.example.com"  # change to your Vault URL
+        address: "https://vault.nodeops.xyz"
+        token: ""            # prefer Secret env mapping or Kubernetes auth
         pollInterval: "45s"
-        # Do NOT set token here; read from secret below via env mapping
+        skipTLSVerify: false
       deployment:
         env:
           existing:
-            vault-creds:   # Secret name (must exist in targetNamespace)
-              VAULT_TOKEN: VAULT_TOKEN  # env var name : secret key
+            vault-creds:
+              VAULT_TOKEN: VAULT_TOKEN
+    # Secret creation example (must exist before install):
+    # kubectl -n stakater create secret generic vault-creds --from-literal=VAULT_TOKEN="<token>"
