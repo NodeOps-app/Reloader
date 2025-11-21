@@ -3,7 +3,53 @@ entries:
   reloader:
   - apiVersion: v1
     appVersion: v1.4.10
-    created: "2025-11-14T05:38:54.63470049Z"
+    created: "2025-11-21T07:37:38.484724711Z"
+    description: Reloader chart that runs on kubernetes
+    digest: 854e192a2edea9623d96ca71fb5258e2a674f8e88487f0dad881bb39d042d096
+    home: https://github.com/stakater/Reloader
+    icon: https://raw.githubusercontent.com/stakater/Reloader/master/assets/web/reloader-round-100px.png
+    keywords:
+    - Reloader
+    - kubernetes
+    maintainers:
+    - email: hello@stakater.com
+      name: Stakater
+    - email: rasheed@stakater.com
+      name: rasheedamir
+    - email: faizan@stakater.com
+      name: faizanahmad055
+    name: reloader
+    sources:
+    - https://github.com/stakater/Reloader
+    urls:
+    - https://NodeOps-app.github.io/Reloader/reloader-0.1.10.tgz
+    version: 0.1.10
+  - apiVersion: v1
+    appVersion: v1.4.10
+    created: "2025-11-21T07:37:38.489111611Z"
+    description: Reloader chart that runs on kubernetes
+    digest: 854e192a2edea9623d96ca71fb5258e2a674f8e88487f0dad881bb39d042d096
+    home: https://github.com/stakater/Reloader
+    icon: https://raw.githubusercontent.com/stakater/Reloader/master/assets/web/reloader-round-100px.png
+    keywords:
+    - Reloader
+    - kubernetes
+    maintainers:
+    - email: hello@stakater.com
+      name: Stakater
+    - email: rasheed@stakater.com
+      name: rasheedamir
+    - email: faizan@stakater.com
+      name: faizanahmad055
+    name: reloader
+    sources:
+    - https://github.com/stakater/Reloader
+    urls:
+    - https://NodeOps-app.github.io/Reloader/dist/reloader-0.1.10.tgz
+    version: 0.1.10
+  - apiVersion: v1
+    appVersion: v1.4.10
+    created: "2025-11-21T07:37:38.487301479Z"
     description: Reloader chart that runs on kubernetes
     digest: d396808bd463787abe9e1a9926ec7abbc9c02c49a6cfa2cc88aaa82371bafc90
     home: https://github.com/stakater/Reloader
@@ -22,11 +68,11 @@ entries:
     sources:
     - https://github.com/stakater/Reloader
     urls:
-    - reloader-0.1.5.tgz
+    - https://NodeOps-app.github.io/Reloader/reloader-0.1.5.tgz
     version: 0.1.5
   - apiVersion: v1
     appVersion: v1.4.10
-    created: "2025-11-14T05:35:56.154639172Z"
+    created: "2025-11-21T07:37:38.486461087Z"
     description: Reloader chart that runs on kubernetes
     digest: 43119e212a0b65fe3ccf19029cfcc34448a49bb625ffdfd9cd9921c6c8256200
     home: https://github.com/stakater/Reloader
@@ -45,11 +91,11 @@ entries:
     sources:
     - https://github.com/stakater/Reloader
     urls:
-    - reloader-0.1.4.tgz
+    - https://NodeOps-app.github.io/Reloader/reloader-0.1.4.tgz
     version: 0.1.4
   - apiVersion: v1
     appVersion: v1.4.10
-    created: "2025-11-14T05:26:15.987649886Z"
+    created: "2025-11-21T07:37:38.485600819Z"
     description: Reloader chart that runs on kubernetes
     digest: ed8e231de14ad65d22737ff537806f72f8471b5510b25183b3b7a092d275f6e0
     home: https://github.com/stakater/Reloader
@@ -68,6 +114,6 @@ entries:
     sources:
     - https://github.com/stakater/Reloader
     urls:
-    - reloader-0.1.3.tgz
+    - https://NodeOps-app.github.io/Reloader/reloader-0.1.3.tgz
     version: 0.1.3
-generated: "2025-11-14T05:38:54.634712533Z"
+generated: "2025-11-21T07:37:38.483625366Z"
