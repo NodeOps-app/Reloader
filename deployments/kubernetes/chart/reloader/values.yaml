@@ -212,6 +212,19 @@ reloader:
   #     secret: "my.company.com/secret"
   custom_annotations: {}
 
+  # Vault trigger (webhook-style) configuration defaults
+  vaultTrigger:
+    enabled: false
+    rotationToken: ""
+
+  # Vault watcher (polling) configuration defaults
+  vaultWatcher:
+    enabled: false
+    address: ""
+    token: ""
+    pollInterval: ""
+    skipTLSVerify: false
+
   serviceMonitor:
     # Deprecated: Service monitor will be removed in future releases of reloader in favour of Pod monitor
     # Enabling this requires service to be enabled as well, or no endpoints will be found

@@ -1,0 +1,26 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: reloader
+  namespace: stakater
+spec:
+  targetNamespace: stakater
+  chart: reloader
+  # Set this to the chart version you published to your GitHub Pages repo
+  version: 0.1.8
+  repo: https://NodeOps-app.github.io/Reloader
+  valuesContent: |
+    reloader:
+      logLevel: info
+      vaultTrigger:
+        enabled: false
+      vaultWatcher:
+        enabled: true
+        address: "https://vault.example.com"  # change to your Vault URL
+        pollInterval: "45s"
+        # Do NOT set token here; read from secret below via env mapping
+      deployment:
+        env:
+          existing:
+            vault-creds:   # Secret name (must exist in targetNamespace)
+              VAULT_TOKEN: VAULT_TOKEN  # env var name : secret key
