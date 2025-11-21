@@ -7,7 +7,7 @@ spec:
   targetNamespace: stakater
   chart: reloader
   # Set this to the chart version you published to your GitHub Pages repo
-  version: 0.1.9
+  version: 0.1.10
   repo: https://NodeOps-app.github.io/Reloader
   valuesContent: |
     reloader:
