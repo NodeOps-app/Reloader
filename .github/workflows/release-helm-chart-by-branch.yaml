@@ -119,11 +119,24 @@ jobs:
           else
             helm repo index branches/$SAFE --url "https://${{ github.repository_owner }}.github.io/${GITHUB_REPOSITORY#*/}/branches/${SAFE}" 
           fi
+          # --- Root index dual publish ---
+          # Maintain a root-level index.yaml so standard repo URL works without branch path.
+          # Copy new artifact to root and merge index preserving history.
+          if ls *.tgz >/dev/null 2>&1; then
+            echo "Moving packaged chart(s) to root for dual publish"
+            cp dist/*.tgz .
+            if [ -f index.yaml ]; then
+              helm repo index . --url "https://${{ github.repository_owner }}.github.io/${GITHUB_REPOSITORY#*/}" --merge index.yaml
+            else
+              helm repo index . --url "https://${{ github.repository_owner }}.github.io/${GITHUB_REPOSITORY#*/}" 
+            fi
+            git add *.tgz index.yaml
+          fi
           git add branches/$SAFE
           if git diff --cached --quiet; then
             echo "No changes to commit for branch repository"
           else
-            git commit -m "chore(chart): publish reloader ${{ steps.newver.outputs.version }} for branch $SAFE"
+            git commit -m "chore(chart): publish reloader ${{ steps.newver.outputs.version }} (branch $SAFE + root index)"
           fi
           git push origin gh-pages
           # Clean working tree to avoid checkout conflicts
